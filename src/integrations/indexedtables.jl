@@ -1,5 +1,6 @@
 @require IndexedTables begin
 using IndexedTables: IndexedTable
+import NullableArrays
 
 immutable IndexedTableIterator{T, S<:IndexedTable}
     source::S
@@ -92,6 +93,14 @@ end
     end
 end
 
+function get_proper_array_instance(source_coltype)
+    if source_coltype <: Nullable
+        return NullableArrays.NullableArray{source_coltype.parameters[1],1}(0)
+    else
+        return Array{source_coltypes[i],1}(0)
+    end
+end
+
 @traitfn function IndexedTables.IndexedTable{X; IsIterableTable{X}}(x::X; idxcols::Union{Void,Vector{Symbol}}=nothing, datacols::Union{Void,Vector{Symbol}}=nothing)
     iter = getiterator(x)
 
@@ -118,8 +127,8 @@ end
     idxcols_indices = [findfirst(source_colnames,i) for i in idxcols]
     datacols_indices = [findfirst(source_colnames,i) for i in datacols]
 
-    idx_storage = IndexedTables.Columns([Array{source_coltypes[i],1}(0) for i in idxcols_indices]..., names=[source_colnames[i] for i in idxcols_indices])
-    data_storage = IndexedTables.Columns([Array{source_coltypes[i],1}(0) for i in datacols_indices]..., names=[source_colnames[i] for i in datacols_indices])
+    idx_storage = IndexedTables.Columns([get_proper_array_instance(source_coltypes[i]) for i in idxcols_indices]..., names=[source_colnames[i] for i in idxcols_indices])
+    data_storage = IndexedTables.Columns([get_proper_array_instance(source_coltypes[i]) for i in datacols_indices]..., names=[source_colnames[i] for i in datacols_indices])
 
     tuple_type_idx = eval(Expr(:curly, :Tuple, [Expr(:curly, :Val, i) for i in idxcols_indices]...))
     tuple_type_data = eval(Expr(:curly, :Tuple, [Expr(:curly, :Val, i) for i in datacols_indices]...))
